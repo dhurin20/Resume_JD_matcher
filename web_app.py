@@ -14,40 +14,36 @@ import google.generativeai as genai
 
 st.title("Profile Matcher")
 
-################################################   Session State   ################################################
-
-if 'jd_uploaded_names' not in st.session_state:
-    st.session_state.jd_uploaded_names = {}
-if 'cv_uploaded_names' not in st.session_state:
-    st.session_state.cv_uploaded_names = {}
-    
-if 'jd_uploaded_texts' not in st.session_state:
-    st.session_state.jd_uploaded_texts = {}
-if 'cv_uploaded_texts' not in st.session_state:
-    st.session_state.cv_uploaded_texts = {}
-
-if 'progress_text' not in st.session_state:
-    st.session_state.progress_text = ""
-
-if 'genai_model_name' not in st.session_state:
-    st.session_state.genai_model_name = "llama3.2:3b"
-if 'genAi_APIKey' not in st.session_state:
-    st.session_state.genAi_APIKey = "AIzaSyBVkAYNxv3xtseGJqKrz8c8sbi9AJ9cH6k"
-    
-if 'log_error_cv_file_name' not in st.session_state:
-    st.session_state.log_error_cv_file_name = []
-if 'log_error_jd_file_name' not in st.session_state:
-    st.session_state.log_error_jd_file_name = []
-if 'log_file' not in st.session_state:
-    st.session_state.log_file = []
-if 'log_counter' not in st.session_state:
-    st.session_state.log_counter = 1
-
-
-################################################   FUNCTIONS   ################################################ 
-
-####### GenAi Model call ##########
 def app_page():
+    ################################################   Session State   ################################################
+
+    if 'jd_uploaded_names' not in st.session_state:
+        st.session_state.jd_uploaded_names = {}
+    if 'cv_uploaded_names' not in st.session_state:
+        st.session_state.cv_uploaded_names = {}
+        
+    if 'jd_uploaded_texts' not in st.session_state:
+        st.session_state.jd_uploaded_texts = {}
+    if 'cv_uploaded_texts' not in st.session_state:
+        st.session_state.cv_uploaded_texts = {}
+    
+    if 'progress_text' not in st.session_state:
+        st.session_state.progress_text = ""
+    
+    if 'genai_model_name' not in st.session_state:
+        st.session_state.genai_model_name = "llama3.2:3b"
+    if 'genAi_APIKey' not in st.session_state:
+        st.session_state.genAi_APIKey = "AIzaSyBVkAYNxv3xtseGJqKrz8c8sbi9AJ9cH6k"
+        
+    if 'log_error_cv_file_name' not in st.session_state:
+        st.session_state.log_error_cv_file_name = []
+    if 'log_error_jd_file_name' not in st.session_state:
+        st.session_state.log_error_jd_file_name = []
+    if 'log_file' not in st.session_state:
+        st.session_state.log_file = []
+    if 'log_counter' not in st.session_state:
+        st.session_state.log_counter = 1
+        
     def process(jd_name, cv_name, jd_text, cv_text):
         content = f"""
         Given a resume and Job description(JD), I want to find the key requirements of the JD and know if the resume is fit for that work.
