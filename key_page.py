@@ -2,6 +2,7 @@ import streamlit as st
 from cryptography.fernet import Fernet
 import re
 import time
+import os
 
 def key_entry_page():
     st.title("Enter Decryption Key")
