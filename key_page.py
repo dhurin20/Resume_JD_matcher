@@ -5,6 +5,21 @@ import time
 
 def key_entry_page():
     st.title("Enter Decryption Key")
+    st.markdown(
+    """
+    <style>
+        .top-right-logo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
+    <div class="top-right-logo">
+        <img src="logo.png" width="100">
+    </div>
+    """,
+    unsafe_allow_html=True
+    )
     key_input = st.text_input("Enter secret key to unlock the login page", type = "password")
 
     if st.button("Submit Key"):
