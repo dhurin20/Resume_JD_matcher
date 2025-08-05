@@ -334,27 +334,6 @@ def app_page():
     
     
     ################################################   SIDEBAR   ################################################
-
-    models = ["llama3.2", "gemma3", "deepseek-r1", "Gemini"]
-    captions = {
-        "llama3.2": "🔒 Blocked",
-        "gemma3": "🔒 Blocked",
-        "deepseek-r1": "🔒 Blocked",
-        "Gemini": "✅ Available"
-    }
-    
-    # Show all as text (visual only)
-    st.sidebar.markdown("### Available Models:")
-    for model in models:
-        status = captions[model]
-        if model == "Gemini":
-            st.sidebar.radio(" ", [model], index=0, label_visibility="collapsed")
-        else:
-            st.sidebar.markdown(f"- **{model}** {status}")
-    
-    # Only allow Gemini to be selected
-    st.session_state.genai_model_name = "Gemini"
-
     
     # model_names = st.sidebar.radio(
     #     "Choose the Model",
@@ -373,8 +352,9 @@ def app_page():
     # elif model_names == "gemma3":
     #     st.session_state.genai_model_name = "gemma3:4b"
     # elif model_names == "Gemini":
-    #     st.sidebar.warning("Note: Gemini is a paid service")
-    #     st.session_state.genai_model_name = "Gemini"
+        # st.sidebar.warning("Note: Gemini is a paid service")
+    
+    st.session_state.genai_model_name = "Gemini"
     
     st.sidebar.markdown(f"Selected Model: {st.session_state.genai_model_name}")
     
