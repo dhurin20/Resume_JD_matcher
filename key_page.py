@@ -16,7 +16,7 @@ def key_entry_page():
         }
     </style>
     <div class="top-right-logo">
-        <img src="logo.png" width="100">
+        <img src="DhurinLogo.png" width="100">
     </div>
     """,
     unsafe_allow_html=True
