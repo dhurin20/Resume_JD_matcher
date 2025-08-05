@@ -9,25 +9,32 @@ import io
 from zipfile import ZipFile
 import re
 import google.generativeai as genai
-
+import base64
 
 st.title("Profile Matcher")
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+img_base64 = get_base64_image("DhurinLogo.png")
+
 st.markdown(
-    """
+    f"""
     <style>
-        .top-right-logo {
+        .logo-container {{
             position: absolute;
             top: 10px;
             right: 10px;
-        }
+            z-index: 100;
+        }}
     </style>
-    <div class="top-right-logo">
-        <img src="DhurinLogo.png" width="100">
+    <div class="logo-container">
+        <img src="data:image/png;base64,{img_base64}" width="100">
     </div>
     """,
     unsafe_allow_html=True
 )
-
+st.sidebar.image("DhurinLogo.png", width = 100)
 
 def app_page():
     ################################################   Session State   ################################################
