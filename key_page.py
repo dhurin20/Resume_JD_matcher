@@ -5,7 +5,6 @@ import time
 import os
 
 def key_entry_page():
-    st.title("Enter Decryption Key")
     st.markdown(
     """
     <style>
@@ -21,8 +20,7 @@ def key_entry_page():
     """,
     unsafe_allow_html=True
     )
-    st.write("Current working directory:", os.getcwd())
-    st.write("Files in this directory:", os.listdir())
+    st.title("Enter Decryption Key")
 
     key_input = st.text_input("Enter secret key to unlock the login page", type = "password")
 
