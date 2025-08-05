@@ -2,24 +2,33 @@ import streamlit as st
 from cryptography.fernet import Fernet
 import re
 import time
-import os
+import base64
 
 def key_entry_page():
+
+    def get_base64_image(image_path):
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    
+    img_base64 = get_base64_image("DhurinLogo.png")
+    
     st.markdown(
-    """
-    <style>
-        .top-right-logo {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-    </style>
-    <div class="top-right-logo">
-        <img src="DhurinLogo.png" width="100">
-    </div>
-    """,
-    unsafe_allow_html=True
+        f"""
+        <style>
+            .logo-container {{
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 100;
+            }}
+        </style>
+        <div class="logo-container">
+            <img src="data:image/png;base64,{img_base64}" width="100">
+        </div>
+        """,
+        unsafe_allow_html=True
     )
+
     st.image("DhurinLogo.png", width=100)
     st.title("Enter Decryption Key")
 
