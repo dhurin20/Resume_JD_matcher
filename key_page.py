@@ -20,6 +20,7 @@ def key_entry_page():
     """,
     unsafe_allow_html=True
     )
+    st.image("DhurinLogo.png", width=100)
     st.title("Enter Decryption Key")
 
     key_input = st.text_input("Enter secret key to unlock the login page", type = "password")
