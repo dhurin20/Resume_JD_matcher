@@ -11,8 +11,23 @@ import re
 import google.generativeai as genai
 
 
-
 st.title("Profile Matcher")
+st.markdown(
+    """
+    <style>
+        .top-right-logo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
+    <div class="top-right-logo">
+        <img src="DhurinLogo.png" width="100">
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 
 def app_page():
     ################################################   Session State   ################################################
