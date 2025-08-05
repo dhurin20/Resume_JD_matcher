@@ -11,7 +11,6 @@ import re
 import google.generativeai as genai
 import base64
 
-st.title("Profile Matcher")
 def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
@@ -35,6 +34,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 st.sidebar.image("DhurinLogo.png", width = 100)
+
+st.title("Profile Matcher")
 
 def app_page():
     ################################################   Session State   ################################################
