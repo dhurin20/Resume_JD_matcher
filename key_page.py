@@ -20,6 +20,9 @@ def key_entry_page():
     """,
     unsafe_allow_html=True
     )
+    st.write("Current working directory:", os.getcwd())
+    st.write("Files in this directory:", os.listdir())
+
     key_input = st.text_input("Enter secret key to unlock the login page", type = "password")
 
     if st.button("Submit Key"):
