@@ -33,7 +33,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-st.sidebar.image("DhurinLogo.png", width = 50)
+# st.sidebar.image("DhurinLogo.png", width = 50)
 
 st.title("Profile Matcher")
 
