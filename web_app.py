@@ -361,7 +361,7 @@ def app_page():
     selected_jd = None
     selected_resume = None
     if st.session_state.jd_uploaded_names:
-        selected_jd = st.sidebar.multiselect("Select Job Descriptions", list(st.session_state.jd_uploaded_names.keys()), placeholder="All Resume are selected")
+        selected_jd = st.sidebar.multiselect("Select Job Descriptions", list(st.session_state.jd_uploaded_names.keys()), placeholder="All Job Descriptions are selected")
     if st.session_state.cv_uploaded_names:
         selected_resume = st.sidebar.multiselect("Select Resumes", list(st.session_state.cv_uploaded_names.keys()), placeholder="All Resume are selected")
     
