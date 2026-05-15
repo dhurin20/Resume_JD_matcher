@@ -10,7 +10,11 @@ from zipfile import ZipFile
 import re
 import google.generativeai as genai
 import base64
-
+from openai import OpenAI
+from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.core.credentials import AzureKeyCredential
+from streamlit_pdf_viewer import pdf_viewer
 
 def app_page():
     def get_base64_image(image_path):
@@ -54,10 +58,12 @@ def app_page():
         st.session_state.progress_text = ""
     
     if 'genai_model_name' not in st.session_state:
-        st.session_state.genai_model_name = "Gemini"
-    if 'genAi_APIKey' not in st.session_state:
-        st.session_state.genAi_APIKey = "AIzaSyBVkAYNxv3xtseGJqKrz8c8sbi9AJ9cH6k"
-        
+        st.session_state.genai_model_name = ""
+    if 'API_key' not in st.session_state:
+        st.session_state.Github_API_key = "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"
+    # if 'genai_endpoint' not in st.session_state:
+    #     st.session_state.genai_endpoint = "https://models.inference.ai.azure.com"
+
     if 'log_error_cv_file_name' not in st.session_state:
         st.session_state.log_error_cv_file_name = []
     if 'log_error_jd_file_name' not in st.session_state:
@@ -96,11 +102,58 @@ def app_page():
         """
     
         try:
-            if st.session_state.genai_model_name  == "Gemini":
-                genai.configure(api_key=st.session_state.genAi_APIKey)
+            if st.session_state.genai_model_name  == "gemini-1.5-flash-latest":
+                genai.configure(api_key=st.session_state.API_key)
                 model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 response = model.generate_content(content)
                 return response.text
+            elif st.session_state.genai_model_name in ["gpt-4o-mini"]:
+                client_gpt = OpenAI(
+                                base_url = "https://models.inference.ai.azure.com",
+                                api_key = st.session_state.Github_API_key,
+                            )
+                response = client_gpt.chat.completions.create(
+                    messages=[
+                                {
+                                    "role": "user",
+                                    "content": content,
+                                }
+                            ],
+                    model = st.session_state.genai_model_name
+                )
+                return response.choices[0].message.content
+
+            # elif st.session_state.genai_model_name in ["gpt-5"]:
+            #     client_gpt = OpenAI(
+            #                     base_url = "https://models.inference.ai.azure.com",
+            #                     api_key = st.session_state.Github_API_key,
+            #                 )
+            #     response = client_gpt.chat.completions.create(
+            #         messages=[
+            #                     {
+            #                         "role": "user",
+            #                         "content": content
+            #                     }
+            #                 ],
+            #         model = st.session_state.genai_model_name
+            #     )
+            #     return response.choices[0].message.content
+            
+            elif st.session_state.genai_model_name in ["Phi-4"]:
+                client_gpt = OpenAI(
+                                base_url = "https://models.inference.ai.azure.com",
+                                api_key = st.session_state.Github_API_key,
+                            )
+                response = client_gpt.chat.completions.create(
+                    messages=[
+                                {
+                                    "role": "user",
+                                    "content": content
+                                }
+                            ],
+                    model = st.session_state.genai_model_name
+                )
+                return response.choices[0].message.content
             else:
                 response = ollama.chat(
                     model = st.session_state.genai_model_name,
@@ -108,6 +161,7 @@ def app_page():
                     options = {"temperature": 0.1, "top_p": 0.8, "top_k": 40, "repeat_penalty": 1.1}
                 )
                 return response['message']['content']
+                
         except Exception as e:
             st.session_state.log_file.append([st.session_state.log_counter,f"While calling Model: {jd_name} -> {cv_name}", str(e)])
             st.session_state.log_counter += 1
@@ -127,11 +181,11 @@ def app_page():
                             [page.extract_text() or "" for page in reader.pages]
                         )
     
-                    elif file_type == "docx":
-                        doc = docx.Document(file_obj)
-                        st.session_state.jd_uploaded_texts[jd_file] = "\n".join(
-                            [para.text for para in doc.paragraphs]
-                        )
+                    # elif file_type == "docx":
+                    #     doc = docx.Document(file_obj)
+                    #     st.session_state.jd_uploaded_texts[jd_file] = "\n".join(
+                    #         [para.text for para in doc.paragraphs]
+                    #     )
     
                     elif file_type == "txt":
                         file_obj.seek(0)
@@ -163,15 +217,15 @@ def app_page():
                             [page.extract_text() or "" for page in reader.pages]
                         )
     
-                    elif file_type == "docx":
-                        doc = docx.Document(file_obj)
-                        st.session_state.cv_uploaded_texts[cv_file] = "\n".join(
-                            [para.text for para in doc.paragraphs]
-                        )
+                    # elif file_type == "docx":
+                    #     doc = docx.Document(file_obj)
+                    #     st.session_state.cv_uploaded_texts[cv_file] = "\n".join(
+                    #         [para.text for para in doc.paragraphs]
+                    #     )
     
-                    elif file_type == "txt":
-                        file_obj.seek(0)
-                        st.session_state.cv_uploaded_texts[cv_file] = file_obj.read().decode("utf-8")
+                    # elif file_type == "txt":
+                    #     file_obj.seek(0)
+                    #     st.session_state.cv_uploaded_texts[cv_file] = file_obj.read().decode("utf-8")
     
                     else:
                         st.session_state.cv_uploaded_texts[cv_file] = ""
@@ -263,7 +317,7 @@ def app_page():
     
     with upload:
         try:
-            jd_files = st.file_uploader("Upload Job Description", type=["pdf", "txt", "docx"], accept_multiple_files=True, key="jd_uploader")
+            jd_files = st.file_uploader("Upload Job Description", type=["pdf", "txt"], accept_multiple_files=True, key="jd_uploader")
             if jd_files:
                 new_jds = []
                 for file in jd_files:
@@ -273,6 +327,16 @@ def app_page():
                 if new_jds:
                     for name in new_jds:
                         st.toast(f"✅ Job Description '{name}' uploaded successfully!")
+                
+            current_jd_files = {file.name: file for file in jd_files} if jd_files else {}
+            removed_jds = set(st.session_state.jd_uploaded_names.keys()) - set(current_jd_files.keys())
+
+            # REMOVE deleted JDs
+            for fname in removed_jds:
+                st.session_state.jd_uploaded_names.pop(fname, None)
+                st.session_state.jd_uploaded_texts.pop(fname, None)
+
+            st.session_state.jd_uploaded_names.update(current_jd_files)
         except Exception as e:
             st.session_state.log_file.append([st.session_state.log_counter, "Error uploading Job Descriptions", str(e)])
             st.session_state.log_counter += 1
@@ -289,6 +353,15 @@ def app_page():
                 if new_cvs:
                     for name in new_cvs:
                         st.toast(f"✅ Resume '{name}' uploaded successfully!")
+                
+            current_cv_files = {file.name: file for file in cv_files} if cv_files else {}
+            removed_cvs = set(st.session_state.cv_uploaded_names.keys()) - set(current_cv_files.keys())
+            # REMOVE deleted resumes
+            for fname in removed_cvs:
+                st.session_state.cv_uploaded_names.pop(fname, None)
+                st.session_state.cv_uploaded_texts.pop(fname, None)
+            st.session_state.cv_uploaded_names.update(current_cv_files)
+                
         except Exception as e:
             st.session_state.log_file.append([st.session_state.log_counter, "Error uploading Resumes", str(e)])
             st.session_state.log_counter += 1
@@ -297,79 +370,176 @@ def app_page():
     ################################################   VIEW TAB   ################################################
     
     with view:
+
         view_options = []
-    
+
         if st.session_state.jd_uploaded_names:
             for jd_file in st.session_state.jd_uploaded_names:
                 view_options.append(f"Job Description: {jd_file}")
-    
+
         if st.session_state.cv_uploaded_names:
             for cv_file in st.session_state.cv_uploaded_names:
                 view_options.append(f"Resume: {cv_file}")
-    
+
         if not view_options:
             st.info("No files uploaded.")
+
         else:
-            selected = st.selectbox("Select a document to view", view_options, index=0)
-    
-            def display_pdf(file_obj):
-                file_obj.seek(0)
-                base64_pdf = base64.b64encode(file_obj.read()).decode('utf-8')
-                pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
-                st.markdown(pdf_display, unsafe_allow_html=True)
-    
+            selected = st.selectbox(
+                "Select a document to view",
+                view_options,
+                index=0
+            )
+
+            # =========================
+            # GET FILE OBJECT
+            # =========================
+
             if selected.startswith("Job Description: "):
                 filename = selected.replace("Job Description: ", "")
                 file_obj = st.session_state.jd_uploaded_names.get(filename)
+
             elif selected.startswith("Resume: "):
                 filename = selected.replace("Resume: ", "")
                 file_obj = st.session_state.cv_uploaded_names.get(filename)
+
             else:
                 file_obj = None
-    
+
+            # =========================
+            # DISPLAY PDF
+            # =========================
+
             if file_obj and file_obj.name.lower().endswith(".pdf"):
-                display_pdf(file_obj)
+
+                file_obj.seek(0)
+
+                pdf_viewer(
+                    file_obj.read(),
+                    width=700,
+                    height=1000
+                )
+
+            # =========================
+            # DISPLAY TXT
+            # =========================
+
+            elif file_obj and file_obj.name.lower().endswith(".txt"):
+                file_obj.seek(0)
+                text_content = file_obj.read().decode("utf-8")
+
+                st.text_area(
+                    "Text Preview",
+                    text_content,
+                    height=500
+                )
+
+            # =========================
+            # UNSUPPORTED
+            # =========================
+
             else:
-                st.info("PDF preview is only supported for PDF files.")
+                st.info("Only PDF and TXT preview are supported.")
     
     
     ################################################   SIDEBAR   ################################################
     
     # model_names = st.sidebar.radio(
     #     "Choose the Model",
-    #     ["llama3.2", "gemma3", "deepseek-r1", "Gemini"],
+    #     ["Gemini", "gpt"],
     #     captions=[
-    #         "3b Model",
-    #         "4b Model",
-    #         "7b Model",
     #         "gemini-1.5-flash-latest",
+    #         "gpt-4o-mini"
     #     ],
     # )
-    # if model_names == "llama3.2":
-    #     st.session_state.genai_model_name = "llama3.2:3b"
-    # elif model_names == "deepseek-r1":
-    #     st.session_state.genai_model_name = "deepseek-r1:7b"
-    # elif model_names == "gemma3":
-    #     st.session_state.genai_model_name = "gemma3:4b"
-    # elif model_names == "Gemini":
-        # st.sidebar.warning("Note: Gemini is a paid service")
-    
-    st.session_state.genai_model_name = "Gemini"
-    
-    st.sidebar.markdown(f"Selected Model: {st.session_state.genai_model_name}")
-    
+
+    provider = st.sidebar.selectbox(
+                                        "Model Provider",
+                                        [
+                                            "OpenAI",
+                                            "Microsoft",
+                                            "Google (Unavailable)"
+                                        ]
+                                    )
+
+    if provider == "Google (Unavailable)":
+        st.sidebar.warning("Gemini models are temporarily disabled")
+        model_name = st.sidebar.radio(
+            "Available Gemini Models",
+            [
+                "gemini-1.5-flash-latest",
+                "gemini-1.5-pro"
+            ],
+            disabled=True
+        )
+    elif provider == "Microsoft":
+        model_name = st.sidebar.radio(
+            "Available Microsoft Models",
+            [
+                "Phi-4"
+            ],
+            disabled=False
+        )
+    elif provider == "OpenAI":
+        model_name = st.sidebar.radio(
+            "Choose OpenAI Model",
+            [
+                "gpt-4o-mini"
+            ]
+        )
+
+    if model_name == "gemini-1.5-flash-latest":
+        st.sidebar.warning("Note: ~250–1500 requests/day")
+        st.session_state.genai_model_name = None
+        st.session_state.API_key = "AIzaSyBVkAYNxv3xtseGJqKrz8c8sbi9AJ9cH6k"
+    elif model_name == "gpt-4o-mini":
+        st.sidebar.warning("Note: ~150 requests/day")
+        st.session_state.genai_model_name = "gpt-4o-mini"
+    # elif model_name == "gpt-5":
+    #     st.sidebar.warning("Note: ~150 requests/day")
+    #     st.session_state.genai_model_name = "gpt-5"
+    elif model_name == "Phi-4":
+        st.sidebar.warning("Note: ~150 requests/day")
+        st.session_state.genai_model_name = "Phi-4"
+        
+
+
+    # st.sidebar.divider()
+    # st.sidebar.markdown(
+    #     f"### 🤖 {st.session_state.get('genai_model_name', 'No Model Selected')}"
+    # )
+
+
+    if st.session_state.jd_uploaded_names or st.session_state.cv_uploaded_names:
+        st.sidebar.divider()
+
     selected_jd = None
     selected_resume = None
     if st.session_state.jd_uploaded_names:
         selected_jd = st.sidebar.multiselect("Select Job Descriptions", list(st.session_state.jd_uploaded_names.keys()), placeholder="All Job Descriptions are selected")
     if st.session_state.cv_uploaded_names:
         selected_resume = st.sidebar.multiselect("Select Resumes", list(st.session_state.cv_uploaded_names.keys()), placeholder="All Resume are selected")
-    
-    if selected_jd:
-            st.sidebar.markdown(f"You have selected: {selected_jd}")
-    if selected_resume:
-            st.sidebar.markdown(f"You have selected: {selected_resume}")
-    
+
+    if st.session_state.jd_uploaded_names or st.session_state.cv_uploaded_names:
+        st.sidebar.divider()
+
+    if not selected_jd and st.session_state.jd_uploaded_names:
+        with st.sidebar.expander("Selected JD"):
+            for f in st.session_state.jd_uploaded_names.keys():
+                st.write(f)
+    elif selected_jd:
+        with st.sidebar.expander("Selected JD"):
+            for f in selected_jd:
+                st.write(f)
+
+    if not selected_resume and st.session_state.cv_uploaded_names:
+        with st.sidebar.expander("Selected Resume"):
+            for f in st.session_state.cv_uploaded_names.keys():
+                st.write(f)
+    elif selected_resume:
+        with st.sidebar.expander("Selected Resume"):
+            for f in selected_resume:
+                st.write(f)
     
     ################################################   PROCESS TAB   ################################################
         
@@ -385,6 +555,9 @@ def app_page():
             stop_button = st.button("⏹️ Stop")
     
         if run_button:
+            if not st.session_state.get("genai_model_name"):
+                st.error("No active model available.")
+                st.stop()
             match_result_df = pd.DataFrame()
             jd_to_process = selected_jd if selected_jd else list(st.session_state.jd_uploaded_texts.keys())
             resume_to_process = selected_resume if selected_resume else list(st.session_state.cv_uploaded_texts.keys())
