@@ -71,32 +71,34 @@ def candidate_already_processed(email, phone):
     
 def save_match_history(match_result_df):
     try:
-        supabase = get_supabase()
-        df = match_result_df.copy()
-        # Clean Email
-        if "Email_ID" in df.columns:
-            df["Email_ID"] = (df["Email_ID"].fillna("").astype(str).str.strip().str.lower())
-        # Clean Phone
-        if "PhoneNumber" in df.columns:
-            df["PhoneNumber"] = (df["PhoneNumber"].apply(normalize_phone))
-        df = df.rename(
-                columns={
-                    "JD_File_Name": "jd_file_name",
-                    "Resume_File_Name": "resume_file_name",
-                    "Name": "name",
-                    "PhoneNumber": "phone_number",
-                    "Email_ID": "email_id",
-                    "Location": "location",
-                    "Matching_percent": "matching_percent",
-                    "Keywords_in_JD": "keywords_in_jd",
-                    "Keywords_in_Resume": "keywords_in_resume",
-                    "Keywords_matching_with_JD": "keywords_matching_with_jd",
-                    "Keywords_missing_in_Resume": "keywords_missing_in_resume"
-                }
-            )
-        records = df.to_dict(orient="records")
-        response = (supabase.table("match_history").insert(records).execute())
-        return True, response
+        if match_result_df is None or match_result_df.empty:
+            supabase = get_supabase()
+            df = match_result_df.copy()
+            # Clean Email
+            if "Email_ID" in df.columns:
+                df["Email_ID"] = (df["Email_ID"].fillna("").astype(str).str.strip().str.lower())
+            # Clean Phone
+            if "PhoneNumber" in df.columns:
+                df["PhoneNumber"] = (df["PhoneNumber"].apply(normalize_phone))
+            df = df.rename(
+                    columns={
+                        "JD_File_Name": "jd_file_name",
+                        "Resume_File_Name": "resume_file_name",
+                        "Name": "name",
+                        "PhoneNumber": "phone_number",
+                        "Email_ID": "email_id",
+                        "Location": "location",
+                        "Matching_percent": "matching_percent",
+                        "Keywords_in_JD": "keywords_in_jd",
+                        "Keywords_in_Resume": "keywords_in_resume",
+                        "Keywords_matching_with_JD": "keywords_matching_with_jd",
+                        "Keywords_missing_in_Resume": "keywords_missing_in_resume"
+                    }
+                )
+            records = df.to_dict(orient="records")
+            response = (supabase.table("match_history").insert(records).execute())
+            return True, response
+        return False, response
     except Exception as e:
         st.write(e)
         return False, str(e)
