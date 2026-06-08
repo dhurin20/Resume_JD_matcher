@@ -391,7 +391,7 @@ def app_page():
     
     with upload:
         try:
-            jd_files = st.file_uploader("Upload Job Description", type=["pdf", "txt"], accept_multiple_files=True, key="jd_uploader")
+            jd_files = st.file_uploader("Upload Job Description", type=["pdf", "txt"], accept_multiple_files="directory", key="jd_uploader")
             if jd_files:
                 new_jds = []
                 for file in jd_files:
@@ -417,7 +417,7 @@ def app_page():
             
         # Resume uploader
         try:
-            cv_files = st.file_uploader("Upload Resume", type=["pdf", "txt", "docx"], accept_multiple_files=True, key="cv_uploader")
+            cv_files = st.file_uploader("Upload Resume", type=["pdf", "txt", "docx"], accept_multiple_files="directory", key="cv_uploader")
             if cv_files:
                 new_cvs = []
                 for file in cv_files:
