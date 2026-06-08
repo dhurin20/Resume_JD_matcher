@@ -678,10 +678,7 @@ def app_page():
                         
                 progress_bar.empty()
                 status_text.empty()
-
-                st.write("About to save history")
                 success, result = save_match_history(match_result_df)
-                st.write("Save history completed")
 
                 # Match Summary Excel
                 excel_buffer = io.BytesIO()
