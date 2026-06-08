@@ -60,9 +60,7 @@ def app_page():
     if 'genai_model_name' not in st.session_state:
         st.session_state.genai_model_name = ""
     if 'API_key' not in st.session_state:
-        st.session_state.Github_API_key = "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"
-    # if 'genai_endpoint' not in st.session_state:
-    #     st.session_state.genai_endpoint = "https://models.inference.ai.azure.com"
+        st.session_state.Github_API_key = st.secrets["GITHUB_API_KEY"]
 
     if 'log_error_cv_file_name' not in st.session_state:
         st.session_state.log_error_cv_file_name = []
@@ -109,7 +107,7 @@ def app_page():
                 return response.text
             elif st.session_state.genai_model_name in ["gpt-4o-mini"]:
                 client_gpt = OpenAI(
-                                base_url = "https://models.inference.ai.azure.com",
+                                base_url = st.secrets["GPT_BASE_URL"],
                                 api_key = st.session_state.Github_API_key,
                             )
                 response = client_gpt.chat.completions.create(
@@ -122,26 +120,9 @@ def app_page():
                     model = st.session_state.genai_model_name
                 )
                 return response.choices[0].message.content
-
-            # elif st.session_state.genai_model_name in ["gpt-5"]:
-            #     client_gpt = OpenAI(
-            #                     base_url = "https://models.inference.ai.azure.com",
-            #                     api_key = st.session_state.Github_API_key,
-            #                 )
-            #     response = client_gpt.chat.completions.create(
-            #         messages=[
-            #                     {
-            #                         "role": "user",
-            #                         "content": content
-            #                     }
-            #                 ],
-            #         model = st.session_state.genai_model_name
-            #     )
-            #     return response.choices[0].message.content
-            
             elif st.session_state.genai_model_name in ["Phi-4"]:
                 client_gpt = OpenAI(
-                                base_url = "https://models.inference.ai.azure.com",
+                                base_url = st.secrets["MICROSOFT_BASE_URL"],
                                 api_key = st.session_state.Github_API_key,
                             )
                 response = client_gpt.chat.completions.create(
