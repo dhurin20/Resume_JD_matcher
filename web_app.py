@@ -56,17 +56,12 @@ def candidate_already_processed(email, phone):
         supabase = get_supabase()
         # Check email first
         if email:
-            st.write(f"Checking email: {email}")
             response = (supabase.table("match_history").select("*").eq("email_id", email).limit(1).execute())
-            st.write("Email lookup result:", response.data)
             if response.data:
                 return response.data
         # Fallback to phone
         if phone:
-            st.write(f"Checking phone: {phone}")
             response = (supabase.table("match_history").select("*").eq("phone_number", phone).limit(1).execute())
-            st.write("Phone lookup result:", response.data)
-
             if response.data:
                 return response.data
         return []
@@ -84,7 +79,6 @@ def save_match_history(match_result_df):
         # Clean Phone
         if "PhoneNumber" in df.columns:
             df["PhoneNumber"] = (df["PhoneNumber"].apply(normalize_phone))
-
         df = df.rename(
                 columns={
                     "JD_File_Name": "jd_file_name",
@@ -100,16 +94,8 @@ def save_match_history(match_result_df):
                     "Keywords_missing_in_Resume": "keywords_missing_in_resume"
                 }
             )
-        st.write("Final columns:")
-        st.write(df.columns.tolist())
         records = df.to_dict(orient="records")
-        st.write(f"Records count: {len(records)}")
-        if len(records) > 0:
-            st.write("First record:")
-            st.write(records[0])
         response = (supabase.table("match_history").insert(records).execute())
-        st.write("Insert response:")
-        st.write(response)
         return True, response
     except Exception as e:
         st.write(e)
