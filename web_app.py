@@ -98,7 +98,7 @@ def save_match_history(match_result_df):
             records = df.to_dict(orient="records")
             response = (supabase.table("match_history").insert(records).execute())
             return True, response
-        return False, response
+        return False, False
     except Exception as e:
         st.write(e)
         return False, str(e)
