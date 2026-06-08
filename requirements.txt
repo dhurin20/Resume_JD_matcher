@@ -10,3 +10,4 @@ streamlit-pdf-viewer
 azure-ai-inference
 azure-core
 openai
+supabase
