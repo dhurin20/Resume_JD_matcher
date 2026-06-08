@@ -678,24 +678,24 @@ def app_page():
                         
                 progress_bar.empty()
                 status_text.empty()
-                success, result = save_match_history(match_result_df)
-
-                # Match Summary Excel
-                excel_buffer = io.BytesIO()
-                with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                    match_result_df.to_excel(writer,index=False,sheet_name='Match Summary')
-                excel_buffer.seek(0)
-                st.session_state["excel_download_data"] = (excel_buffer.read())
-                st.session_state["match_result_df"] = (match_result_df)
-                # Historical Candidates Excel
-                if (not st.session_state.history_candidates_df.empty):
-                    history_buffer = io.BytesIO()
-                    with pd.ExcelWriter(history_buffer,engine='xlsxwriter') as writer:
-                        (st.session_state.history_candidates_df.to_excel(writer,index=False,sheet_name='History'))
-                    history_buffer.seek(0)
-                    st.session_state["history_download_data"] = history_buffer.read()
             else:
                 st.info("No Job Description and Resume uploaded")
+        success, result = save_match_history(match_result_df)
+
+        # Match Summary Excel
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+            match_result_df.to_excel(writer,index=False,sheet_name='Match Summary')
+        excel_buffer.seek(0)
+        st.session_state["excel_download_data"] = (excel_buffer.read())
+        st.session_state["match_result_df"] = (match_result_df)
+        # Historical Candidates Excel
+        if (not st.session_state.history_candidates_df.empty):
+            history_buffer = io.BytesIO()
+            with pd.ExcelWriter(history_buffer,engine='xlsxwriter') as writer:
+                (st.session_state.history_candidates_df.to_excel(writer,index=False,sheet_name='History'))
+            history_buffer.seek(0)
+            st.session_state["history_download_data"] = history_buffer.read()
             
         tab1, tab2 = st.tabs(["New Matches","Historical Candidates"])
 
