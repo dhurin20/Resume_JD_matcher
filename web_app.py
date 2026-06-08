@@ -15,6 +15,105 @@ from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
 from azure.core.credentials import AzureKeyCredential
 from streamlit_pdf_viewer import pdf_viewer
+import re
+from supabase import create_client
+
+def extract_identity(resume_text):
+    text = resume_text[:10000]
+    # Email
+    email_match = re.search(
+        r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b',
+        text
+    )
+    email = email_match.group(0).lower() if email_match else None
+
+    # Phone
+    phone = None
+    for match in re.findall(r'[\+\d\-\(\)\s]{10,20}', text):
+        digits = re.sub(r'\D', '', match)
+        if len(digits) >= 10:
+            phone = digits[-10:]
+            break
+    return email, phone
+
+@st.cache_resource
+def get_supabase():
+    return create_client(
+        st.secrets["SUPABASE_URL"],
+        st.secrets["SUPABASE_KEY"]
+    )
+
+def normalize_phone(phone):
+    if pd.isna(phone):
+        return None
+    digits = re.sub(r"\D", "", str(phone))
+    if len(digits) >= 10:
+        return digits[-10:]
+    return digits
+
+def candidate_already_processed(email, phone):
+    try:
+        supabase = get_supabase()
+        # Check email first
+        if email:
+            st.write(f"Checking email: {email}")
+            response = (supabase.table("match_history").select("*").eq("email_id", email).limit(1).execute())
+            st.write("Email lookup result:", response.data)
+            if response.data:
+                return response.data
+        # Fallback to phone
+        if phone:
+            st.write(f"Checking phone: {phone}")
+            response = (supabase.table("match_history").select("*").eq("phone_number", phone).limit(1).execute())
+            st.write("Phone lookup result:", response.data)
+
+            if response.data:
+                return response.data
+        return []
+    except Exception as e:
+        st.warning(f"Unable to check candidate history: {e}")
+        return []
+    
+def save_match_history(match_result_df):
+    try:
+        supabase = get_supabase()
+        df = match_result_df.copy()
+        # Clean Email
+        if "Email_ID" in df.columns:
+            df["Email_ID"] = (df["Email_ID"].fillna("").astype(str).str.strip().str.lower())
+        # Clean Phone
+        if "PhoneNumber" in df.columns:
+            df["PhoneNumber"] = (df["PhoneNumber"].apply(normalize_phone))
+
+        df = df.rename(
+                columns={
+                    "JD_File_Name": "jd_file_name",
+                    "Resume_File_Name": "resume_file_name",
+                    "Name": "name",
+                    "PhoneNumber": "phone_number",
+                    "Email_ID": "email_id",
+                    "Location": "location",
+                    "Matching_percent": "matching_percent",
+                    "Keywords_in_JD": "keywords_in_jd",
+                    "Keywords_in_Resume": "keywords_in_resume",
+                    "Keywords_matching_with_JD": "keywords_matching_with_jd",
+                    "Keywords_missing_in_Resume": "keywords_missing_in_resume"
+                }
+            )
+        st.write("Final columns:")
+        st.write(df.columns.tolist())
+        records = df.to_dict(orient="records")
+        st.write(f"Records count: {len(records)}")
+        if len(records) > 0:
+            st.write("First record:")
+            st.write(records[0])
+        response = (supabase.table("match_history").insert(records).execute())
+        st.write("Insert response:")
+        st.write(response)
+        return True, response
+    except Exception as e:
+        st.write(e)
+        return False, str(e)
 
 def app_page():
     def get_base64_image(image_path):
@@ -53,6 +152,8 @@ def app_page():
         st.session_state.jd_uploaded_texts = {}
     if 'cv_uploaded_texts' not in st.session_state:
         st.session_state.cv_uploaded_texts = {}
+    if 'processed_resume_names' not in st.session_state:
+        st.session_state.processed_resume_names = set()
     
     if 'progress_text' not in st.session_state:
         st.session_state.progress_text = ""
@@ -70,6 +171,9 @@ def app_page():
         st.session_state.log_file = []
     if 'log_counter' not in st.session_state:
         st.session_state.log_counter = 1
+
+    if 'history_candidates_df' not in st.session_state:
+        st.session_state.history_candidates_df = pd.DataFrame()
         
     def process(jd_name, cv_name, jd_text, cv_text):
         content = f"""
@@ -89,7 +193,7 @@ def app_page():
         {
             "Name": ,
             "PhoneNumber": ,
-            "EmailID": ,
+            "Email_ID": ,
             "Location": ,
             "Matching_percent": ,
             "Keywords_in_JD": [],
@@ -197,17 +301,20 @@ def app_page():
                         st.session_state.cv_uploaded_texts[cv_file] = "".join(
                             [page.extract_text() or "" for page in reader.pages]
                         )
-    
-                    # elif file_type == "docx":
-                    #     doc = docx.Document(file_obj)
-                    #     st.session_state.cv_uploaded_texts[cv_file] = "\n".join(
-                    #         [para.text for para in doc.paragraphs]
-                    #     )
-    
-                    # elif file_type == "txt":
-                    #     file_obj.seek(0)
-                    #     st.session_state.cv_uploaded_texts[cv_file] = file_obj.read().decode("utf-8")
-    
+
+                        email, phone = extract_identity(st.session_state.cv_uploaded_texts[cv_file])
+
+                        if email or phone:
+                            existing_records = candidate_already_processed(email, phone)
+                            if existing_records:
+                                st.session_state.processed_resume_names.add(cv_file)
+                                history_df = pd.DataFrame(existing_records)
+                                st.session_state.history_candidates_df = pd.concat([st.session_state.history_candidates_df,history_df],ignore_index=True)
+                                st.session_state.history_candidates_df = (st.session_state.history_candidates_df.dropna(subset=["name"]))
+                                st.session_state.history_candidates_df = (st.session_state.history_candidates_df.drop_duplicates())
+                                cols = ["processed_date"] + [col for col in st.session_state.history_candidates_df.columns if col != "processed_date"]
+                                st.session_state.history_candidates_df = st.session_state.history_candidates_df[cols]
+
                     else:
                         st.session_state.cv_uploaded_texts[cv_file] = ""
                         st.session_state.log_file.append([f"Unsupported CV file type: {cv_file}", ""])
@@ -250,7 +357,7 @@ def app_page():
                 "Resume_File_Name": cv_name,
                 "Name": json_data.get("Name", ""),
                 "PhoneNumber": json_data.get("PhoneNumber", ""),
-                "EmailID": json_data.get("EmailID", ""),
+                "Email_ID": json_data.get("Email_ID", ""),
                 "Location": json_data.get("Location", ""),
                 "Matching_percent": json_data.get("Matching_percent", ""),
                 "Keywords_in_JD": ", ".join(json_data.get("Keywords_in_JD", [])),
@@ -298,7 +405,7 @@ def app_page():
     
     with upload:
         try:
-            jd_files = st.file_uploader("Upload Job Description", type=["pdf", "txt"], accept_multiple_files="directory", key="jd_uploader")
+            jd_files = st.file_uploader("Upload Job Description", type=["pdf", "txt"], accept_multiple_files=True, key="jd_uploader")
             if jd_files:
                 new_jds = []
                 for file in jd_files:
@@ -324,7 +431,7 @@ def app_page():
             
         # Resume uploader
         try:
-            cv_files = st.file_uploader("Upload Resume", type=["pdf", "txt", "docx"], accept_multiple_files="directory", key="cv_uploader")
+            cv_files = st.file_uploader("Upload Resume", type=["pdf", "txt", "docx"], accept_multiple_files=True, key="cv_uploader")
             if cv_files:
                 new_cvs = []
                 for file in cv_files:
@@ -346,8 +453,9 @@ def app_page():
         except Exception as e:
             st.session_state.log_file.append([st.session_state.log_counter, "Error uploading Resumes", str(e)])
             st.session_state.log_counter += 1
+
             
-    
+
     ################################################   VIEW TAB   ################################################
     
     with view:
@@ -555,6 +663,8 @@ def app_page():
                 for jd in jd_to_process:
                     temp_df = pd.DataFrame()
                     for resume in resume_to_process:
+                        if resume in st.session_state.processed_resume_names:
+                            continue
                         
                         progress_count += 0.2
                         status_count += 1
@@ -580,27 +690,67 @@ def app_page():
                         
                 progress_bar.empty()
                 status_text.empty()
-                
+
+                st.write("About to save history")
+                success, result = save_match_history(match_result_df)
+                st.write("Save history completed")
+
+                # Match Summary Excel
                 excel_buffer = io.BytesIO()
                 with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                    match_result_df.to_excel(writer, index=False, sheet_name='Match Summary')
+                    match_result_df.to_excel(writer,index=False,sheet_name='Match Summary')
                 excel_buffer.seek(0)
-                st.session_state["excel_download_data"] = excel_buffer.read()
-                st.session_state["match_result_df"] = match_result_df  # Optional: keep for display
+                st.session_state["excel_download_data"] = (excel_buffer.read())
+                st.session_state["match_result_df"] = (match_result_df)
+                # Historical Candidates Excel
+                if (not st.session_state.history_candidates_df.empty):
+                    history_buffer = io.BytesIO()
+                    with pd.ExcelWriter(history_buffer,engine='xlsxwriter') as writer:
+                        (st.session_state.history_candidates_df.to_excel(writer,index=False,sheet_name='History'))
+                    history_buffer.seek(0)
+                    st.session_state["history_download_data"] = history_buffer.read()
             else:
                 st.info("No Job Description and Resume uploaded")
             
+        tab1, tab2 = st.tabs(["New Matches","Historical Candidates"])
+
+    # -----------------------------
+    # NEW MATCHES
+    # -----------------------------
+    with tab1:
         if "excel_download_data" in st.session_state:
             st.download_button(
-                label="📥 Download Excel Summary",
-                data=st.session_state["excel_download_data"],
+                label="📥 Download Match Summary",
+                data=st.session_state[
+                    "excel_download_data"
+                ],
                 file_name="match_summary.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-    
+
         if "match_result_df" in st.session_state:
             st.subheader("Match Summary Table")
-            st.dataframe(st.session_state["match_result_df"], use_container_width=True)
+            st.dataframe(st.session_state["match_result_df"],use_container_width=True)
+
+    # -----------------------------
+    # HISTORY
+    # -----------------------------
+    with tab2:
+        if (not st.session_state.history_candidates_df.empty):
+            if ("history_download_data"in st.session_state):
+                st.download_button(
+                    label="📥 Download Historical Candidates",
+                    data=st.session_state[
+                        "history_download_data"
+                    ],
+                    file_name="historical_candidates.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="history_download"
+                )
+            st.subheader("Previously Processed Candidates")
+            st.dataframe(st.session_state.history_candidates_df,use_container_width=True)
+        else:
+            st.info("No previously processed candidates found.")
     
     
     ################################################   LOG TAB   ################################################
