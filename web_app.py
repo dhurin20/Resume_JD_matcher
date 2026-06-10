@@ -664,7 +664,6 @@ def app_page():
                     temp_df = pd.DataFrame()
                     for resume in resume_to_process:
                         if resume in st.session_state.processed_resume_names:
-                            st.toast(f"Resume '{cv_file}' was already processed.")
                             continue
                         
                         progress_count += 0.2
