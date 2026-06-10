@@ -304,15 +304,14 @@ def app_page():
                         if email or phone:
                             existing_records = candidate_already_processed(email, phone)
                             if existing_records:
-                                processed_date = existing_records[0].get("processed_date")
-                                if processed_date:
-                                    try:
-                                        processed_date = pd.to_datetime(processed_date).strftime("%Y-%m-%d")
-                                    except Exception:
-                                        processed_date = str(processed_date)
-                                else:
-                                    processed_date = "unknown date"
-                                st.toast(f"Resume '{cv_file}' was already processed on {processed_date}.")
+                                # processed_date = existing_records[0].get("processed_date")
+                                # if processed_date:
+                                #     try:
+                                #         processed_date = pd.to_datetime(processed_date).strftime("%Y-%m-%d")
+                                #     except Exception:
+                                #         processed_date = str(processed_date)
+                                # else:
+                                #     processed_date = "unknown date"
                                 st.session_state.processed_resume_names.add(cv_file)
                                 history_df = pd.DataFrame(existing_records)
                                 st.session_state.history_candidates_df = pd.concat([st.session_state.history_candidates_df,history_df],ignore_index=True)
@@ -680,6 +679,8 @@ def app_page():
                     temp_df = pd.DataFrame()
                     for resume in resume_to_process:
                         if resume in st.session_state.processed_resume_names:
+                            processed_date = st.session_state.history_candidates_df.loc[st.session_state.history_candidates_df["id"] == resume, "processed_date"]
+                            st.toast(f"Resume '{cv_file}' was already processed on {processed_date}.")
                             continue
                         
                         progress_count += 0.2
