@@ -634,8 +634,8 @@ def app_page():
     ################################################   PROCESS TAB   ################################################
         
     with process_tab:
-        extraction_jd()
-        extraction_cv()
+        # extraction_jd()
+        # extraction_cv()
         
         col1, col2 = st.columns(2)
         with col1:
@@ -645,6 +645,16 @@ def app_page():
             stop_button = st.button("⏹️ Stop")
     
         if run_button:
+            
+            st.session_state.processed_resume_names = set()
+            st.session_state.history_candidates_df = pd.DataFrame()
+            st.session_state.pop("match_result_df", None)
+            st.session_state.pop("excel_download_data", None)
+            st.session_state.pop("history_download_data", None)
+
+            extraction_jd()
+            extraction_cv()
+            
             if not st.session_state.get("genai_model_name"):
                 st.error("No active model available.")
                 st.stop()
