@@ -244,50 +244,55 @@ def app_page():
             st.session_state.log_counter += 1
             st.session_state.log_error_cv_file_name.append(cv_name)
     
-    ####### Extract JD pdf to text using pyPdf ##########
-    
-    def extraction_jd():
+    def extraction_jd(selected_jds=None):
         if st.session_state.jd_uploaded_names:
+            if selected_jds is None:
+                selected_jds = list(st.session_state.jd_uploaded_names.keys())
             for jd_file, file_obj in st.session_state.jd_uploaded_names.items():
+                if jd_file not in selected_jds:
+                    continue
                 try:
                     file_type = jd_file.split('.')[-1].lower()
-    
+
                     if file_type == "pdf":
                         reader = PyPDF2.PdfReader(file_obj)
                         st.session_state.jd_uploaded_texts[jd_file] = "".join(
                             [page.extract_text() or "" for page in reader.pages]
                         )
-    
+
                     # elif file_type == "docx":
                     #     doc = docx.Document(file_obj)
                     #     st.session_state.jd_uploaded_texts[jd_file] = "\n".join(
                     #         [para.text for para in doc.paragraphs]
                     #     )
-    
+
                     elif file_type == "txt":
                         file_obj.seek(0)
                         st.session_state.jd_uploaded_texts[jd_file] = file_obj.read().decode("utf-8")
-    
+
                     else:
                         st.session_state.jd_uploaded_texts[jd_file] = ""
                         st.session_state.log_file.append([f"Unsupported JD file type: {jd_file}", ""])
                         st.session_state.log_error_jd_file_name.append(jd_file)
-                        
+
                 except Exception as e:
                     st.session_state.log_file.append([st.session_state.log_counter, f"While extracting Job Description: {jd_file}", str(e)])
                     st.session_state.log_counter += 1
                     st.session_state.log_error_jd_file_name.append(jd_file)
                     continue
-    
-    
+
     ####### Extract CV pdf to text using pyPdf ##########
     
-    def extraction_cv():
+    def extraction_cv(selected_cvs=None):
         if st.session_state.cv_uploaded_names:
+            if selected_cvs is None:
+                selected_cvs = list(st.session_state.cv_uploaded_names.keys())
             for cv_file, file_obj in st.session_state.cv_uploaded_names.items():
+                if cv_file not in selected_cvs:
+                    continue
                 try:
                     file_type = cv_file.split('.')[-1].lower()
-    
+
                     if file_type == "pdf":
                         reader = PyPDF2.PdfReader(file_obj)
                         st.session_state.cv_uploaded_texts[cv_file] = "".join(
@@ -311,8 +316,8 @@ def app_page():
                                 st.session_state.processed_resume_names.add(cv_file)
                                 history_df = pd.DataFrame(existing_records)
                                 st.session_state.history_candidates_df = pd.concat([st.session_state.history_candidates_df,history_df],ignore_index=True)
-                                st.session_state.history_candidates_df = (st.session_state.history_candidates_df.dropna(subset=["name"]))
-                                st.session_state.history_candidates_df = (st.session_state.history_candidates_df.drop_duplicates())
+                                st.session_state.history_candidates_df = st.session_state.history_candidates_df.dropna(subset=["name"])
+                                st.session_state.history_candidates_df = st.session_state.history_candidates_df.drop_duplicates()
                                 cols = ["processed_date"] + [col for col in st.session_state.history_candidates_df.columns if col != "processed_date"]
                                 st.session_state.history_candidates_df = st.session_state.history_candidates_df[cols]
 
@@ -320,7 +325,7 @@ def app_page():
                         st.session_state.cv_uploaded_texts[cv_file] = ""
                         st.session_state.log_file.append([f"Unsupported CV file type: {cv_file}", ""])
                         st.session_state.log_error_cv_file_name.append(cv_file)
-    
+
                 except Exception as e:
                     st.session_state.log_file.append([st.session_state.log_counter, f"While extracting Resume: {cv_file}", str(e)])
                     st.session_state.log_counter += 1
@@ -652,8 +657,8 @@ def app_page():
             st.session_state.pop("excel_download_data", None)
             st.session_state.pop("history_download_data", None)
 
-            extraction_jd()
-            extraction_cv()
+            extraction_jd(jd_to_process)
+            extraction_cv(resume_to_process)
             
             if not st.session_state.get("genai_model_name"):
                 st.error("No active model available.")
