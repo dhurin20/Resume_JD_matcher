@@ -97,9 +97,10 @@ def save_match_history(match_result_df):
         records = df.to_dict(orient="records")
         if len(records) > 0:
             response = (supabase.table("match_history").insert(records).execute())
+            st.info(f"{len(records)} Records updated to Database.")
             return True, response
         else:
-            st.info("No Records to process, All duplicates.")
+            st.info("No Records to be inserted in Database.")
             return True, "No records to insert"
         
     except Exception as e:
