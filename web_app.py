@@ -99,7 +99,7 @@ def save_match_history(match_result_df):
             response = (supabase.table("match_history").insert(records).execute())
             return True, response
         else:
-            st.write("No records to insert.")
+            st.info("No Records to process, All duplicates.")
             return True, "No records to insert"
         
     except Exception as e:
