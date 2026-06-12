@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import base64
 import PyPDF2
@@ -51,29 +52,99 @@ def normalize_phone(phone):
         return digits[-10:]
     return digits
 
-def candidate_already_processed(email, phone):
+def clean_filename(path_or_name):
+    if not path_or_name:
+        return None
+    return os.path.basename(str(path_or_name)).strip()
+
+
+def sort_by_jd_and_score(df):
+    if df is None or df.empty:
+        return df
+
+    df = df.copy()
+    jd_col = None
+    score_col = None
+
+    for col in ["JD_File_Name", "jd_file_name"]:
+        if col in df.columns:
+            jd_col = col
+            break
+
+    for col in ["Matching_percent", "matching_percent"]:
+        if col in df.columns:
+            score_col = col
+            break
+
+    if jd_col is None:
+        return df
+
+    if score_col is not None:
+        df[score_col] = pd.to_numeric(df[score_col], errors="coerce")
+        return df.sort_values([jd_col, score_col], ascending=[True, False]).reset_index(drop=True)
+
+    return df.sort_values(jd_col, ascending=True).reset_index(drop=True)
+
+
+def candidate_already_processed(jd_name, email, phone):
     try:
         supabase = get_supabase()
-        # Check email first
+        email = email.lower().strip() if email else None
+        phone = normalize_phone(phone)
+
         if email:
-            response = (supabase.table("match_history").select("*").eq("email_id", email).limit(1).execute())
+            response = (
+                supabase.table("match_history")
+                .select("*")
+                .eq("jd_file_name", jd_name)
+                .eq("email_id", email)
+                .limit(1)
+                .execute()
+            )
             if response.data:
                 return response.data
-        # Fallback to phone
+
         if phone:
-            response = (supabase.table("match_history").select("*").eq("phone_number", phone).limit(1).execute())
+            response = (
+                supabase.table("match_history")
+                .select("*")
+                .eq("jd_file_name", jd_name)
+                .eq("phone_number", phone)
+                .limit(1)
+                .execute()
+            )
             if response.data:
                 return response.data
+
         return []
     except Exception as e:
         st.warning(f"Unable to check candidate history: {e}")
         return []
-    
+
+
+def append_history_records(records):
+    if not records:
+        return
+    history_df = pd.DataFrame(records)
+    st.session_state.history_candidates_df = pd.concat(
+        [st.session_state.history_candidates_df, history_df],
+        ignore_index=True,
+    )
+    st.session_state.history_candidates_df = st.session_state.history_candidates_df.dropna(subset=["name"])
+    st.session_state.history_candidates_df = st.session_state.history_candidates_df.drop_duplicates()
+    cols = ["processed_date"] + [col for col in st.session_state.history_candidates_df.columns if col != "processed_date"]
+    st.session_state.history_candidates_df = st.session_state.history_candidates_df[cols]
+
+
 def save_match_history(match_result_df):
     try:
         supabase = get_supabase()
         df = match_result_df.copy()
         # Clean Email
+        if "JD_File_Name" in df.columns:
+            df["JD_File_Name"] = df["JD_File_Name"].apply(clean_filename)
+        if "Resume_File_Name" in df.columns:
+            df["Resume_File_Name"] = df["Resume_File_Name"].apply(clean_filename)
         if "Email_ID" in df.columns:
             df["Email_ID"] = (df["Email_ID"].fillna("").astype(str).str.strip().str.lower())
         # Clean Phone
@@ -291,29 +362,6 @@ def app_page():
                         st.session_state.cv_uploaded_texts[cv_file] = "".join(
                             [page.extract_text() or "" for page in reader.pages]
                         )
-
-                        email, phone = extract_identity(st.session_state.cv_uploaded_texts[cv_file])
-
-                        if email or phone:
-                            existing_records = candidate_already_processed(email, phone)
-                            if existing_records:
-                            #     processed_date = existing_records[0].get("processed_date")
-                            #     if processed_date:
-                            #         try:
-                            #             processed_date = pd.to_datetime(processed_date).strftime("%Y-%m-%d")
-                            #         except Exception:
-                            #             processed_date = str(processed_date)
-                            #     else:
-                            #         processed_date = "unknown date"
-                            #     st.toast(f"Resume '{cv_file}' was already processed on {processed_date}.")
-                                st.session_state.processed_resume_names.add(cv_file)
-                                history_df = pd.DataFrame(existing_records)
-                                st.session_state.history_candidates_df = pd.concat([st.session_state.history_candidates_df,history_df],ignore_index=True)
-                                st.session_state.history_candidates_df = (st.session_state.history_candidates_df.dropna(subset=["name"]))
-                                st.session_state.history_candidates_df = (st.session_state.history_candidates_df.drop_duplicates())
-                                cols = ["processed_date"] + [col for col in st.session_state.history_candidates_df.columns if col != "processed_date"]
-                                st.session_state.history_candidates_df = st.session_state.history_candidates_df[cols]
-
                     else:
                         st.session_state.cv_uploaded_texts[cv_file] = ""
                         st.session_state.log_file.append([f"Unsupported CV file type: {cv_file}", ""])
@@ -662,17 +710,32 @@ def app_page():
                 for jd in jd_to_process:
                     temp_df = pd.DataFrame()
                     for resume in resume_to_process:
-                        if resume in st.session_state.processed_resume_names:
-                            st.toast(f"{resume} was already processed.")
+                        cleaned_jd = clean_filename(jd)
+                        cleaned_resume = clean_filename(resume)
+                        pair_key = f"{cleaned_jd}|{cleaned_resume}"
+                        if pair_key in st.session_state.processed_resume_names:
+                            st.toast(f"{cleaned_resume} was already processed for {cleaned_jd}.")
                             continue
-                        
+
+                        resume_text = st.session_state.cv_uploaded_texts.get(resume, "")
+                        email, phone = extract_identity(resume_text)
+                        existing_records = []
+                        if email or phone:
+                            existing_records = candidate_already_processed(cleaned_jd, email, phone)
+
+                        if existing_records:
+                            st.session_state.processed_resume_names.add(pair_key)
+                            append_history_records(existing_records)
+                            st.toast(f"{cleaned_resume} already processed for Job Description {cleaned_jd}. Added to history.")
+                            continue
+
                         progress_count += 0.2
                         status_count += 1
                         status_text.markdown(f"🔍 Matching **{jd}** with **{resume}** ({status_count}/{total_combinations})...")
                         process_text.markdown("📌 Starting model execution...")
                         progress_bar.progress(progress_count / total_combinations)
                         
-                        output_text = process(jd, resume, st.session_state.jd_uploaded_texts[jd], st.session_state.cv_uploaded_texts[resume])
+                        output_text = process(jd, resume, st.session_state.jd_uploaded_texts[jd], resume_text)
                         process_text.markdown("🔄 Extracting structured data from model output...")
                         progress_count += 0.3
                         progress_bar.progress(progress_count / total_combinations)
@@ -700,7 +763,7 @@ def app_page():
                 match_result_df.to_excel(writer,index=False,sheet_name='Match Summary')
             excel_buffer.seek(0)
             st.session_state["excel_download_data"] = (excel_buffer.read())
-            st.session_state["match_result_df"] = (match_result_df)
+            st.session_state["match_result_df"] = sort_by_jd_and_score(match_result_df)
             # Historical Candidates Excel
             if (not st.session_state.history_candidates_df.empty):
                 history_buffer = io.BytesIO()
@@ -727,7 +790,7 @@ def app_page():
 
         if "match_result_df" in st.session_state:
             st.subheader("Match Summary Table")
-            st.dataframe(st.session_state["match_result_df"],use_container_width=True)
+            st.dataframe(sort_by_jd_and_score(st.session_state["match_result_df"]), use_container_width=True)
 
     # -----------------------------
     # HISTORY
@@ -745,7 +808,7 @@ def app_page():
                     key="history_download"
                 )
             st.subheader("Previously Processed Candidates")
-            st.dataframe(st.session_state.history_candidates_df,use_container_width=True)
+            st.dataframe(sort_by_jd_and_score(st.session_state.history_candidates_df), use_container_width=True)
         else:
             st.info("No previously processed candidates found.")
     
