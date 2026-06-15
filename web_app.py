@@ -252,13 +252,15 @@ def app_page():
     
         Resume: {cv_text}
         """ + """
-        I want you to fill and return only the below json format.
+        IMPORTANT: Return ONLY valid JSON matching the schema below. Do NOT include any commentary,
+        code fences, or explanatory text. Use null for missing scalar values and empty arrays for lists.
+
         {
-            "Name": ,
-            "PhoneNumber": ,
-            "Email_ID": ,
-            "Location": ,
-            "Matching_percent": ,
+            "Name": null,
+            "PhoneNumber": null,
+            "Email_ID": null,
+            "Location": null,
+            "Matching_percent": null,
             "Keywords_in_JD": [],
             "Keywords_in_Resume": [],
             "Keywords_matching_with_JD": [],
@@ -284,7 +286,8 @@ def app_page():
                                     "content": content,
                                 }
                             ],
-                    model = st.session_state.genai_model_name
+                    model = st.session_state.genai_model_name,
+                    temperature = 0.0
                 )
                 return response.choices[0].message.content
             elif st.session_state.genai_model_name in ["Phi-4"]:
@@ -299,14 +302,15 @@ def app_page():
                                     "content": content
                                 }
                             ],
-                    model = st.session_state.genai_model_name
+                    model = st.session_state.genai_model_name,
+                    temperature = 0.0
                 )
                 return response.choices[0].message.content
             else:
                 response = ollama.chat(
                     model = st.session_state.genai_model_name,
                     messages = [{'role': 'user', 'content': content}],
-                    options = {"temperature": 0.1, "top_p": 0.8, "top_k": 40, "repeat_penalty": 1.1}
+                    options = {"temperature": 0.0, "top_p": 0.8, "top_k": 40, "repeat_penalty": 1.1}
                 )
                 return response['message']['content']
                 
@@ -378,18 +382,18 @@ def app_page():
     
     def extract_json_return_df(jd_name, cv_name, text):
         try:
-            # Use regex to safely find the first JSON block
-            json_match = re.search(r'\{.*?\}', text, re.DOTALL)
-    
-            if not json_match:
+            # Safely extract the outermost JSON object from the model output
+            start = text.find('{')
+            end = text.rfind('}')
+            if start == -1 or end == -1 or end <= start:
                 st.session_state.log_file.append([st.session_state.log_counter, f"While Extracting JSON, {jd_name} -> {cv_name}", "No JSON block found in text"])
                 st.session_state.log_counter += 1
                 st.session_state.log_error_cv_file_name.append(cv_name)
                 st.session_state.log_error_jd_file_name.append(jd_name)
                 return None
-    
-            json_str = json_match.group(0).replace("NA", '"NA"')
-    
+
+            json_str = text[start:end+1]
+
             try:
                 json_data = json.loads(json_str)
             except json.JSONDecodeError as e:
